@@ -1,0 +1,8 @@
+# Example file
+[bot]
+  guild_id = "724349134172233488" # The server id
+  channel_id = "208643566488517230" # Voice channel id
+  token = "fjQ4ODfydTI0efA3NDgwNDAw.Cw98dQ.GETgVfjrMh6fCp6GH34EcdvnRvI" # Token bot
+  status = "JRock Music" # Status bot
+  url = "http://audio.misproductions.com/japan48k" # Url streaming
+
