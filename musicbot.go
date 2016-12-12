@@ -5,11 +5,13 @@ import (
   "log"
   "time"
   "flag"
+  "strings"
   "github.com/bwmarrin/dgvoice"
   "github.com/bwmarrin/discordgo"
   "github.com/spf13/viper"
   "github.com/fsnotify/fsnotify"
 )
+
 
 var bot map[string]string
 
@@ -48,7 +50,7 @@ func connectionOn(filename string) {
   
   log.Println("Bot is Opening.")
 
-  //discord.AddHandler(messageCreate)
+  discord.AddHandler(messageCreate)
 
   // Open Websocket
   err = discord.Open()
@@ -83,10 +85,35 @@ func connectionOn(filename string) {
   dgvoice.PlayAudioFile(vs, bot["url"])
 }
 
+// messageCreate handler for controller text input
+func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
+  //log.Println(m.Mentions)
+  
+  if len(m.Mentions) != 0 {
+    //log.Println(m.Mentions[0].ID)
+    // Restart the bot
+    if m.Mentions[0].ID == bot["bot_id"] {
+      //log.Println(m.Content)
+      command := strings.Split(m.Content, " ")
+      if len(command) >= 2 {
+        method := command[1]
+        log.Println(m.Mentions[0].Username)
+        log.Println(method)
+        
+        switch method {
+          case "restart":
+            //log.Println("Restarting...")
+            dgvoice.KillPlayer()
+        }
+      }
+    }
+  }
+}
+
 func main() {
   file_name := flag.String("f", "bot.toml", "Set path for the config file.")
   flag.Parse()
-  
+
   // Hot reload
   viper.WatchConfig()
   viper.OnConfigChange(func (e fsnotify.Event) {
