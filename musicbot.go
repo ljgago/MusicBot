@@ -6,12 +6,10 @@ import (
   "time"
   "flag"
   "strings"
-  "github.com/bwmarrin/dgvoice"
   "github.com/bwmarrin/discordgo"
   "github.com/spf13/viper"
   "github.com/fsnotify/fsnotify"
 )
-
 
 var bot map[string]string
 
@@ -82,13 +80,12 @@ func connectionOn(filename string) {
   defer vs.Close()
 
   // Play to URL
-  dgvoice.PlayAudioFile(vs, bot["url"])
+  PlayAudioFile(vs, bot["url"])
 }
 
 // messageCreate handler for controller text input
 func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
   //log.Println(m.Mentions)
-  
   if len(m.Mentions) != 0 {
     //log.Println(m.Mentions[0].ID)
     // Restart the bot
@@ -99,11 +96,10 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
         method := command[1]
         log.Println(m.Mentions[0].Username)
         log.Println(method)
-        
         switch method {
           case "restart":
             //log.Println("Restarting...")
-            dgvoice.KillPlayer()
+            KillPlayer()
         }
       }
     }
@@ -118,7 +114,7 @@ func main() {
   viper.WatchConfig()
   viper.OnConfigChange(func (e fsnotify.Event) {
     log.Println("The config file changed:", e.Name)
-    dgvoice.KillPlayer()
+    KillPlayer()
   })
   
   for {
