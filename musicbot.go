@@ -12,9 +12,10 @@ import (
 )
 
 var bot map[string]string
+var new_url string
 
 // loadConfig load the config file
-func loadConfig (filename string) (error){
+func loadConfig(filename string) (error){
   // Read the config.toml file
   viper.SetConfigType("toml")
   viper.SetConfigFile(filename)
@@ -26,7 +27,6 @@ func loadConfig (filename string) (error){
     return err
   }
   bot = viper.GetStringMapString("bot")
-  log.Println("URL:", bot["url"])
   return nil
 }
 
@@ -38,6 +38,11 @@ func connectionOn(filename string) {
     log.Println(err)
     return
   }
+  if new_url != "" {
+    bot["url"] = new_url
+  }
+
+  log.Println("URL:", bot["url"])
 
   discord, err := discordgo.New("Bot " + bot["token"])
   if err != nil {
@@ -94,11 +99,18 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
       command := strings.Split(m.Content, " ")
       if len(command) >= 2 {
         method := command[1]
-        log.Println(m.Mentions[0].Username)
-        log.Println(method)
+        log.Println(m.Mentions[0].Username, method)
         switch method {
           case "restart":
             //log.Println("Restarting...")
+            KillPlayer()
+          case "url":
+            if len(command) == 3 {
+              new_url = command[2]
+              KillPlayer()
+            }
+          case "default":
+            new_url = ""
             KillPlayer()
         }
       }
@@ -109,6 +121,8 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 func main() {
   file_name := flag.String("f", "bot.toml", "Set path for the config file.")
   flag.Parse()
+
+  new_url = ""
 
   // Hot reload
   viper.WatchConfig()
