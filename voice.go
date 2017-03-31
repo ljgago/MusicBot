@@ -24,57 +24,78 @@ const (
 )
 
 var (
-  run         *exec.Cmd
-  stop        bool
+  voiceInstances = map[string]*VoiceInstance{}
 )
+
+
+type VoiceInstance struct {
+  voice             *discordgo.VoiceConnection
+  pusEncoder       *opus.Encoder
+  run               *exec.Cmd
+  pcm               chan []int16
+  end               chan bool
+  quit              chan bool
+  recv              []int16
+  send              chan []int16
+  guildID           string
+  channelID         string
+  skip              bool
+  stop              bool
+  trackPlaying      bool
+}
 
 // PlayAudioFile will play the given filename to the already connected
 // Discord voice server/channel.  voice websocket and udp socket
 // must already be setup before this will work.
-func PlayStream(v *discordgo.VoiceConnection, url string) {
-  var pcm chan []int16
-  var quit chan bool
+func (vi *VoiceInstance) PlayStream(url string, end chan bool) {
   // Create a shell command "object" to run.
-  run = exec.Command("ffmpeg", "-i", url, "-f", "s16le", "-ar", strconv.Itoa(frameRate), "-ac", strconv.Itoa(channels), "pipe:1")
+  vi.run = exec.Command("ffmpeg", "-i", url, "-f", "s16le", "-ar", strconv.Itoa(frameRate), "-ac", strconv.Itoa(channels), "pipe:1")
 
-  ffmpegout, err := run.StdoutPipe()
+  ffmpegout, err := vi.run.StdoutPipe()
   if err != nil {
     log.Println("StdoutPipe Error:", err)
     return
   }
 
-  ffmpegbuf := bufio.NewReaderSize(ffmpegout, 16384)
+  //ffmpegbuf := bufio.NewReaderSize(ffmpegout, 16384)
+  ffmpegbuf := bufio.NewReaderSize(ffmpegout, 65536)
 
   // Starts the ffmpeg command
-  err = run.Start()
+  err = vi.run.Start()
   if err != nil {
     log.Println("RunStart Error:", err)
     return
   }
   // kill the ffmpeg process
-  defer run.Process.Kill()
+  defer vi.run.Process.Kill()
 
   // Send "speaking" packet over the voice websocket
-  v.Speaking(true)
+  vi.voice.Speaking(true)
   // Send not "speaking" packet over the websocket when we finish
-  defer v.Speaking(false)
+  defer vi.voice.Speaking(false)
 
   // will actually only spawn one instance, a bit hacky.
-  if pcm == nil {
-    pcm = make(chan []int16, 2)
+  if vi.pcm == nil {
+    vi.pcm = make(chan []int16, 2)
   }
-  if quit == nil {
-    quit = make(chan bool)
+  //defer close(vi.pcm)
+  
+  if vi.quit == nil {
+    vi.quit = make(chan bool)
   }
-  go SendPCM(v, pcm, quit)
-  stop = false
+  defer close(vi.quit)
+
+  go vi.SendPCM(vi.pcm, vi.quit)
+  vi.stop = false
+
+  defer delete(voiceInstances, vi.voice.GuildID)
 
   for {
     // read data from ffmpeg stdout
     select {
-      case <-quit:
+      case <-vi.quit:
         log.Println("INFO: Exit from PlayAudio.")
-        run.Process.Kill()
+        vi.run.Process.Kill()
         return
       default:  
     }
@@ -83,27 +104,32 @@ func PlayStream(v *discordgo.VoiceConnection, url string) {
     err = binary.Read(ffmpegbuf, binary.LittleEndian, &audiobuf)
     if err == io.EOF || err == io.ErrUnexpectedEOF {
       log.Println("FATA: Exit from read audio")
-      stop = true
-    }
-    if err != nil {
+      vi.voice.Disconnect()
+      return
+    } else if err != nil {
       log.Println("FATA: Error reading from ffmpeg stdout :", err)
-      stop = true
+      vi.voice.Disconnect()
+      return
+      //vi.run.Process.Kill()
     }
-    if stop == true {
-      quit <- true
-      <-quit
+    if vi.stop == true {
+      close(vi.pcm)
+      vi.quit <- true
+      <-vi.quit
       log.Println("INFO: Exit from PlayStream")
-      stop = false
+      vi.stop = false
+      end <- true
+      vi.voice.Disconnect()
       return
     }
     // Send received PCM to the sendPCM channel
-    pcm <- audiobuf
+    vi.pcm <- audiobuf
   }
 }
 
 // SendPCM will receive on the provied channel encode
 // received PCM data into Opus then send that to Discordgo
-func SendPCM(v *discordgo.VoiceConnection, pcm <-chan []int16, quit chan bool) {
+func (vi *VoiceInstance) SendPCM(pcm <-chan []int16, quit chan bool) {
   opusEncoder, err := opus.NewEncoder(frameRate, channels, opus.AppRestrictedLowdelay)
   if err != nil {
     log.Println("NewEncoder Error:", err)
@@ -127,17 +153,17 @@ func SendPCM(v *discordgo.VoiceConnection, pcm <-chan []int16, quit chan bool) {
     opus_data := make([]byte, frameSize*channels*2)//bufferSize)
     opus_n, err := opusEncoder.Encode(recv, opus_data)
     if err != nil {
-      log.Println("Encoding Error:", err)
+      log.Println("FATA: Encoding Error - ", err)
       quit <- true
       return
     }
     count := 0
     for {
-      if v.Ready == false || v.OpusSend == nil {
-        log.Printf("Discordgo not ready for opus packets. %+v : %+v\n", v.Ready, v.OpusSend)
+      if vi.voice.Ready == false || vi.voice.OpusSend == nil {
+        log.Printf("FATA: Discordgo not ready for opus packets. %+v : %+v\n", vi.voice.Ready, vi.voice.OpusSend)
         time.Sleep(1000 * time.Millisecond)
         if count > 10 {
-          quit <- true
+          vi.quit <- true
           return
         }
         count++
@@ -147,20 +173,18 @@ func SendPCM(v *discordgo.VoiceConnection, pcm <-chan []int16, quit chan bool) {
       }
     }
     // send encoded opus data to the send Opus channel
-    v.OpusSend <- opus_data[:opus_n]
+    vi.voice.OpusSend <- opus_data[:opus_n]
   }
 }
 
-func StopStream() {
-  stop = true
+func (vi *VoiceInstance) StopStream() {
+  vi.stop = true
+  <-vi.end 
 }
-
-
 
 // KillPlayer forces the player to stop by killing the ffmpeg cmd process
 // this method may be removed later in favor of using chans or bools to
 // request a stop.
-func KillPlayer() {
-  run.Process.Kill()
-  
+func (vi *VoiceInstance) KillPlayer() {
+  vi.run.Process.Kill()
 }
