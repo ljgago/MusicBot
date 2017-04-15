@@ -1,24 +1,22 @@
-# musicbot
+# MusicBot
 
-**musicbot** is a simple music bot for Discord builded in Go. **musicbot** play url stream and single files. It use [discordgo](https://github.com/bwmarrin/discordgo), [dgvoice](https://github.com/bwmarrin/dgvoice), and [viper](https://github.com/spf13/viper) for config file.
+**MusicBot** is a multiserver music bot for Discord builded in Go. **MusicBot** plays youtube audio and url radio stream.
+
+### Characteristics:
+- Plays YouTube audio with query parameters or the url link.
+- Plays url radio stream.
+- Search YouTube videos.
+- Support queue.
+- Support remove song of queue by index, by user or by the last song.
+- Support for skip, pause and resume.
 
 ### Build and install
 
-You need to have installed in your system _go_ and for _dgvoice_ you need:
-
-* You must use the current develop branch of Discordgo
-* You must have _ffmpeg_ in your path and _Opus libs_ already installed.
+You need to have installed in your system **go**, **ffmpeg** and **opus lib** (**opus** and **opusfile**)
 
 ```bash
-# Install discordgo
-go get -u github.com/bwmarrin/discordgo
-# Change to develop branch
-cd $GOPATH/src/github.com/bwmarrin/discordgo
-git checkout develop
-# Rebuild
-go install github.com/bwmarrin/discordgo
-# Install musicbot
-go get -u github.com/ljgago/musicbot
+# Install MusicBot
+go get -u github.com/ljgago/MusicBot
 ```
 
 ### Use
@@ -26,18 +24,19 @@ go get -u github.com/ljgago/musicbot
 **musicbot** use a simple TOML config file.
 
 ```bash
-musicbot -f bot.toml
+MusicBot -f bot.toml
 ```
 
 Example config file:
 
 ```bash
 [discord]
-  guild = "724349134172233488" # The Guild ID
-  channel = "208643566488517230" # Voice Channel ID
-  token = "fjQ4ODfydTI0efA3NDgwNDAw.Cw98dQ.GETgVfjrMh6fCp6GH34EcdvnRvI" # Token bot
-  status = "Music" # Status bot
-  url = "http://audio.misproductions.com/japan48k" # Url streaming
+  token = "YjQ4ODMyNTI0NzG3NDMwsDAw.CdNZBQ.fG5QVSUj7Gunf7CTTh69jG18tiQ" # Token bot
+  status = "Music Bot | !!help"
+  prefix = "!"
+
+[youtube]
+  token = "UIzRSyFyg75iDJbsKhaYk97UtgFriJjbo8uLH57"
 ```
 
 License MIT.

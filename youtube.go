@@ -1,35 +1,26 @@
 package main
 
 import (
-  //"log"
+  //"time"
+  "regexp"
   "net/http"
-	"github.com/google/google-api-go-client/googleapi/transport"
-	"google.golang.org/api/youtube/v3"
+  //"strconv"
+  "github.com/google/google-api-go-client/googleapi/transport"
+  "google.golang.org/api/youtube/v3"
   "github.com/rylio/ytdl"
+  "github.com/bwmarrin/discordgo"
 )
 
-type Song struct {
-  ID          string
-  QueueID     string
-  Title       string
-  OrderedBy   string
-  Duration    string
-  Status      string
-  VideoURL    string
-  VK          bool
-}
 
-var (
-  queue       []Song
-  //queueLock = &sync.Mutex{}
-
-)
-
-func youtubeFind(searchString string) (url, title string, err error) {
-  //queueLock.Lock()
-  //defer queueLock.Unlock()
-
+func YoutubeFind(searchString string, m *discordgo.MessageCreate) (song Song, err error) { //(url, title, time string, err error)
   // YouTube
+  var rxpDurationDays, rxpDurationHours, rxpDurationMinutes, rxpDurationSeconds *regexp.Regexp
+
+  rxpDurationDays = regexp.MustCompile(`([0-9]*)D`)
+  rxpDurationHours = regexp.MustCompile(`([0-9]*)H`)
+  rxpDurationMinutes = regexp.MustCompile(`([0-9]*)M`)
+  rxpDurationSeconds = regexp.MustCompile(`([0-9]*)S`)
+
   client := &http.Client{
     Transport: &transport.APIKey{Key: o.YoutubeToken},
   }
@@ -37,39 +28,48 @@ func youtubeFind(searchString string) (url, title string, err error) {
   service, err := youtube.New(client)
   if err != nil {
     //log.Fatalf("Error creating new YouTube client: %v", err)
-    return "", "", err
+    return
   }
+  /*
+  if strings.HasPrefix(searchString, "https://") {
+    searchString = strings.Split(searchString, "https://www.youtube.com/watch?v=")[1]
+  } */
 
   call := service.Search.List("id,snippet").Q(searchString).MaxResults(1)
   response, err := call.Do()
   if err != nil {
     //log.Fatalf("Error making search API call: %v", err)
-    return "", "", err
+    return
   }
 
   var (
-    audioId, audioTitle string//fileVideoID string
+    audioId, audioTitle string //, fileVideoID string
   )
 
   for _, item := range response.Items {
     audioId = item.Id.VideoId
     audioTitle = item.Snippet.Title
   }
+  if audioId == "" {
+    ChMessageSend(m.ChannelID, "Sorry, I can't found this song.")
+    return
+  }
 
   vid, err := ytdl.GetVideoInfo("https://www.youtube.com/watch?v=" + audioId)
   if err != nil {
     //ChMessageSend(textChannelID, "Sorry, nothing found for query: "+strings.Trim(searchString, " "))
-    return "", "", err
+    return
   }
+
+  //format := vid.Formats.Extremes(ytdl.FormatResolutionKey, false)[0]
   format := vid.Formats.Extremes(ytdl.FormatAudioBitrateKey, true)[0]
+  //format := vid.Formats.Filter(ytdl.FormatAudioBitrateKey, []interface{}{"360p", "480p", "96", "128"})[0]
   videoURL, _ := vid.GetDownloadURL(format)
   videoURLString := videoURL.String()
 
-  return videoURLString, audioTitle, nil
-
   /*
-  if len(queue) > 0 {
-    for _, v := range queue {
+  if len(vi.queue) > 0 {
+    for _, v := range vi.queue {
       if v.ID == vid.ID {
         fileVideoID = vid.ID + "_" + strconv.FormatInt(time.Now().UTC().UnixNano(), 10)
         break
@@ -80,10 +80,12 @@ func youtubeFind(searchString string) (url, title string, err error) {
   } else {
     fileVideoID = vid.ID
   }
+  */
 
+  
   videos := service.Videos.List("contentDetails").Id(vid.ID)
   resp, err := videos.Do()
-
+  
   var (
     duration, durationString string
   )
@@ -131,25 +133,17 @@ func youtubeFind(searchString string) (url, title string, err error) {
     durationString = durationString + "00"
   }
 
-  song := Song{
-    vid.ID,
-    fileVideoID,
-    audioTitle,
+  song = Song{
+    m.ChannelID,
     m.Author.Username,
+    vid.ID,
+    //fileVideoID,
+    audioTitle,
     durationString,
-    "q",
     videoURLString,
-    false,
   }
 
-  queue = append(queue, song)
-
-  if forRandom == false {
-    ChMessageSend(textChannelID, "Enqueued **"+audioTitle+"** ["+durationString+"]")
-  }
-
-  go func() {
-    status <- song
-  }()
-  */
+  //vi.queue = append(queue, song)
+ 
+  return 
 }

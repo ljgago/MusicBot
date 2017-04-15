@@ -1,35 +1,33 @@
 package main
 
 import (
-  
   "log"
   "time"
-  "errors"
+  //"errors"
   "strings"
   "github.com/bwmarrin/discordgo"
 )
 
-type Discord struct {
-  Session     *discordgo.Session
-}
 
 // DiscordConnect make a new connection to Discord
-func (d *Discord) DiscordConnect() (err error) {
+func DiscordConnect() (err error) {
   
-  d.Session, err = discordgo.New("Bot " + o.DiscordToken)
+  dg, err = discordgo.New("Bot " + o.DiscordToken)
   if err != nil {
     log.Println("FATA: error creating Discord session,", err)
     return
   }
   log.Println("INFO: Bot is Opening")
-  d.Session.AddHandler(messageHandler)
+  dg.AddHandler(MessageCreateHandler)
+  dg.AddHandler(GuildCreateHandler)
+  dg.AddHandler(GuildDeleteHandler)
   // Open Websocket
-  err = d.Session.Open()
+  err = dg.Open()
   if err != nil {
     log.Println("FATA: Error Open():", err)
     return
   }
-  _, err = d.Session.User("@me")
+  _, err = dg.User("@me")
   if err != nil {
     // Login unsuccessful
     log.Println("FATA:", err)
@@ -40,273 +38,199 @@ func (d *Discord) DiscordConnect() (err error) {
   //log.Println("INFO: Playing", o.Status)
   //log.Println("INFO:", o.Url)
   log.Println("INFO: Bot is now running. Press CTRL-C to exit.")
-  return nil
-}
+  // Purge time of 30 sec
+  purgeTime = 60
+  purgeRoutine()
 
-// VoiceConnect join to voice channel and play audio streaming 
-/*
-func (d *Discord) VoiceConnect() (err error) { 
-  //d.Session.UpdateStatus(0, o.Status)
-  // Join to voice channel
-  vs, err := d.Session.ChannelVoiceJoin(o.Guild, o.Channel, false, false)
-  if err != nil {
-    return err
-  }
-  PlayStream(vs, o.Url)
+  dg.UpdateStatus(0, o.DiscordStatus)
+  
   return nil
 }
-*/
 
 // Start connect to discord and join to channel
 func Start() (err error) {
-  var d = &Discord{}
-  if err = d.DiscordConnect(); err != nil {
+  if err = DiscordConnect(); err != nil {
     log.Println("FATA:", err)
     return err
   }
-  /*
-  for {
-    if err = d.VoiceConnect(); err != nil {
-      log.Println("FATA:", err)
-    }
-    log.Println("INFO: Restarting ...")
-    time.Sleep(5000 * time.Millisecond)
-  }
-  */
   return nil
 }
 
-// searchVoiceChannel search the voice channel id into from guild.
-func searchVoiceChannel(s *discordgo.Session, m *discordgo.MessageCreate) (channelID string, err error) { 
-  for _, g := range s.State.Guilds {
+// SearchVoiceChannel search the voice channel id into from guild.
+func SearchVoiceChannel(user string) (voiceChannelID string) { 
+  for _, g := range dg.State.Guilds {
     for _, v := range g.VoiceStates {
-      if v.UserID == m.Author.ID {
-        return v.ChannelID, nil
+      if v.UserID == user {
+        return v.ChannelID
       }
     }   
   }
-  return "", errors.New("The user is not in a voice channel.")
+  return ""
 }
 
-func searchGuild(s *discordgo.Session, m *discordgo.MessageCreate) (guildID string) {
-  channel, _ := s.Channel(m.ChannelID)
-  return channel.GuildID
+// SearchGuild search the guild ID
+func SearchGuild(textChannelID string) (guildID string) {
+  channel, _ := dg.Channel(textChannelID)
+  guildID = channel.GuildID
+  return 
 }
 
-func getVoiceConnection(s *discordgo.Session, guild string) (voice *discordgo.VoiceConnection) {
-  return (s.VoiceConnections[guild])
-}
+// AddTimeDuration calculate the total time duration
+func AddTimeDuration(t TimeDuration) (total TimeDuration) {
+    
+  total.Second =  t.Second % 60
+  t.Minute = t.Minute + t.Second / 60
 
+  total.Minute = t.Minute % 60
+  t.Hour = t.Hour + t.Minute / 60
 
-func retryOnBadGateway(f func() error) {
-  var err error
-  for i := 0; i < 3; i++ {
-    if err = f(); err != nil {
-      if strings.HasPrefix(err.Error(), "HTTP 502") {
-        // If the error is Bad Gateway, try again after 1 sec.
-        time.Sleep(1 * time.Second)
-        continue
-      } else {
-        // Otherwise panic !
-        log.Println("ERROR: ", err)
-      }
-    } else {
-      // In case of no error, return.
-      return
-    }
-  }
-}
-
-func sendMessage(s *discordgo.Session, m *discordgo.MessageCreate, msg string) (err error) {
-  //log.Println("BOT: ", msg)
-  retryOnBadGateway(func() error {
-    return sendFormattedMessage(s, m, msg)
-  })
+  total.Hour = t.Hour % 24
+  total.Day = t.Day + t.Hour / 24
+  
   return
 }
 
-func sendFormattedMessage(s *discordgo.Session, m *discordgo.MessageCreate, msg string) (err error) {
-  prefix := ":notes: | **" + m.Author.Username + "**, "
-  _, err = s.ChannelMessageSend(m.ChannelID, prefix + msg)
-  if err != nil {
-    return err
-  }
-  return nil
-}
+// ChMessageSendEmbed
+func ChMessageSendEmbed(textChannelID, title, description string) {
+  embed := discordgo.MessageEmbed{}
 
-// messageCreate handler for controller text input
-func (d *Discord) messageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
-  if len(m.Mentions) == 0 {
-    return
-  }
-  // Restart the bot
-  botID, _ := s.User("@me")
-  if m.Mentions[0].ID != botID.ID {
-    return
-  }
+  embed.Title = title
+  embed.Description = description
+  embed.Color = 0xb20000
 
-  if strings.Contains(m.Content, "!help") {
-    log.Println("INFO:", m.Author.Username, "send '!help'")
-    helpReporter(s, m)
-    return
-  }
+  for i := 0; i < 10; i++ {
+    msg, err := dg.ChannelMessageSendEmbed(textChannelID, &embed)
 
-  if strings.Contains(m.Content, "!play") {
-    log.Println("INFO:", m.Author.Username, "send '!play'")
-    playReporter(s, m)
-    return
-  }
-  if strings.Contains(m.Content, "!stop") {
-    log.Println("INFO:", m.Author.Username, "send '!stop'")
-    stopReporter(s, m)
-    return
-  }
-  if strings.Contains(m.Content, "!youtube") {
-    log.Println("INFO:", m.Author.Username, "send '!youtube'")
-    youtubeReporter(s, m)
-    return
-  }
-  if strings.Contains(m.Content, "!status") {
-    log.Println("INFO:", m.Author.Username, "send '!status'")
-    statusReporter(s, m)
-    return
-  }
-  if strings.Contains(m.Content, "!clean") {
-    log.Println("INFO:", m.Author.Username, "send '!clean'")
-    cleanReporter(s, m)
-    return
+    if err != nil {
+      time.Sleep(1 * time.Second)
+      continue
+    }
+    msgToPurgeQueue(msg)
+    break
   }
 }
 
-func helpReporter(s *discordgo.Session, m *discordgo.MessageCreate) {
-  help := "```go\n`Standard Commands List`\n```\n" + 
-  "`!help` -> show help commands.\n" +
-  "`!play` -> play the url streaming. Use !play url.\n" +
-  "`!stop` -> stop the played streaming.\n" + 
-  "`!status` -> change the status of the bot.\n" + 
-  "`!clean` -> clean the status of the bot.\n"
+// ChMessageSendHold send a message
+func ChMessageSendHold(textChannelID, message string) {
+  for i := 0; i < 10; i++ {
+    _, err := dg.ChannelMessageSend(textChannelID, message)
 
-  sendMessage(s, m, help)
+    if err != nil {
+      time.Sleep(1 * time.Second)
+      continue
+    }
+    break
+  }
 }
 
-func playReporter(s *discordgo.Session, m *discordgo.MessageCreate) {
-  guildID := searchGuild(s, m)
-  channelID, err := searchVoiceChannel(s, m)
-  if err != nil {
-    log.Println("ERROR: Voice channel id not found: ", err)
-    sendMessage(s, m, "you need to be in a voice channel.")
-    return
-  }
+// ChMessageSend send a message and auto-remove it in a time
+func ChMessageSend(textChannelID, message string) {
+  for i := 0; i < 10; i++ {
+    msg, err := dg.ChannelMessageSend(textChannelID, message)
 
-  command := strings.Fields(m.Content)
-
-  if len(command) != 3 {
-    sendMessage(s, m, "you need to specify an url.")
-    return
+    if err != nil {
+      time.Sleep(1 * time.Second)
+      continue
+    }
+    msgToPurgeQueue(msg)
+    break
   }
-  url := command[2]
-  vi := voiceInstances[guildID]
-  if vi != nil {
-    // change audio to the voice channel
-    vi.StopStream()
-    log.Println("INFO: Update voice channel")
-    time.Sleep(5000 * time.Millisecond)
-  }
+}
 
-  // create new voice instance
-  vi = new(VoiceInstance)
-  voiceInstances[guildID] = vi
-  vi.guildID = guildID
+func msgToPurgeQueue(m *discordgo.Message) {
+  if purgeTime > 0 {
+    timestamp := time.Now().UTC().Unix()
+
+    message := PurgeMessage{
+      m.ID,
+      m.ChannelID,
+      timestamp,
+    }
+
+    purgeQueue = append(purgeQueue, message)
+  }
+}
+
+func purgeRoutine() { 
+  if purgeTime > 0 {
+    go func() {
+      for {
+        // TODO: There's even no need for range here, should be the zero element every time
+        for k, v := range purgeQueue {
+          if time.Now().Unix()-purgeTime > v.TimeSent {
+            purgeQueue = append(purgeQueue[:k], purgeQueue[k+1:]...)
+
+            dg.ChannelMessageDelete(v.ChannelID, v.ID)
+
+            // Break at first match to avoid panic, timing isn't that important here
+            break
+          }
+        }
+        time.Sleep(time.Second * 1)
+      }
+    }()
+  }
+}
+
+// GuildCreateHandler
+func GuildCreateHandler(s *discordgo.Session, guild *discordgo.GuildCreate) {
+  log.Println("INFO: Guild Create:", guild.ID)
+  //GuildCreate(guild)
+}
+
+// GuildDeleteHandler
+func GuildDeleteHandler(s *discordgo.Session, guild *discordgo.GuildDelete) {
+  log.Println("INFO: Guild Delete:", guild.ID)
   
-  if vi.voice, err = s.ChannelVoiceJoin(guildID, channelID, false, false); err != nil {
-    delete(voiceInstances, vi.guildID)
-    log.Println("ERROR: Error to join in a voice channel: ", err)
-    return
+  v := voiceInstances[guild.ID]
+  if v != nil {
+    go func() {
+      v.endSig <- true
+    }()
+    time.Sleep(200 * time.Millisecond)
+    mutex.Lock()
+    delete(voiceInstances, guild.ID)
+    mutex.Unlock()
   }
-  log.Println("INFO: New voice channel created")
-
-  // Play to URL
-  vi.end = make(chan bool)
-  go vi.PlayStream(url, vi.end)
-  sendMessage(s, m, "I'm playing now!")
-
 }
 
-func stopReporter(s *discordgo.Session, m *discordgo.MessageCreate) {
-  //s.UpdateStatus(0, "")
-  guildID := searchGuild(s, m)
-  vi := voiceInstances[guildID] 
-  if vi == nil {
-    log.Println("INFO: The bot get ready stoped")
-    sendMessage(s, m, "I'm ready stoped!")
+// MessageCreateHandler
+func MessageCreateHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
+
+  if !strings.HasPrefix(m.Content, o.DiscordPrefix) {
     return
   }
-  vi.StopStream()
-  //delete(voiceInstances, guildID)
-  //voiceInstances[guildID] = nil
-  log.Println("INFO: The bot stop play audio")
-  sendMessage(s, m, "I'm stop now!")
-}
+  guildID := SearchGuild(m.ChannelID)
+  v := voiceInstances[guildID]
 
-func youtubeReporter(s *discordgo.Session, m *discordgo.MessageCreate) {
-  guildID := searchGuild(s, m)
-  channelID, err := searchVoiceChannel(s, m)
-  if err != nil {
-    log.Println("ERROR: Voice channel id not found: ", err)
-    sendMessage(s, m, "you need to be in a voice channel.")
-    return
+  content := strings.Replace(m.Content, o.DiscordPrefix, "", 1)
+  command := strings.Fields(content)
+
+  switch(command[0]) {
+    case "help", "h":
+      HelpReporter(m)
+    case "join", "j":
+      JoinReporter(v, m)
+    case "leave", "l":
+      LeaveReporter(v, m)
+    case "play":
+      PlayReporter(v, m)
+    case "radio":
+      RadioReporter(v, m)
+    case "stop":
+      StopReporter(v, m)
+    case "pause":
+      PauseReporter(v, m)
+    case "resume":
+      ResumeReporter(v, m)
+    case "queue":
+      QueueReporter(v, m)
+    case "skip":
+      SkipReporter(v, m)
+    case "youtube":
+      YoutubeReporter(m)
+    default:
+      return
   }
-
-  if len(strings.Fields(m.Content)) < 3 {
-    sendMessage(s, m, "you need to specify a name.")
-    return
-  }
-  command := strings.SplitAfter(m.Content, "!youtube")
-  queue := strings.TrimSpace(command[1])
-
-  url, title, err := youtubeFind(queue)
-  if err != nil {
-    log.Println("ERROR: Youtube search: ", err)
-  }
-
-  vi := voiceInstances[guildID]
-  if vi != nil {
-    // change audio to the voice channel
-    vi.StopStream()
-    log.Println("INFO: Update voice channel")
-    time.Sleep(5000 * time.Millisecond)
-  }
-
-  // create new voice instance
-  vi = new(VoiceInstance)
-  voiceInstances[guildID] = vi
-  vi.guildID = guildID
-  
-  if vi.voice, err = s.ChannelVoiceJoin(guildID, channelID, false, false); err != nil {
-    delete(voiceInstances, vi.guildID)
-    log.Println("ERROR: Error to join in a voice channel: ", err)
-    return
-  }
-  log.Println("INFO: New voice channel created")
-
-  // Play to URL
-  vi.end = make(chan bool)
-  go vi.PlayStream(url, vi.end)
-  sendMessage(s, m, "I'm playing `" + title + "`")
-}
-
-func statusReporter(s *discordgo.Session, m *discordgo.MessageCreate) {
-  if len(strings.Fields(m.Content)) < 3 {
-    sendMessage(s, m, "you need to specify a status.")
-    return
-  }
-  command := strings.SplitAfter(m.Content, "!status")
-  status := strings.TrimSpace(command[1])
-  s.UpdateStatus(0, status)
-  sendMessage(s, m, "I'm playing `" + status + "`")
-}
-
-func cleanReporter(s *discordgo.Session, m *discordgo.MessageCreate) {
-  s.UpdateStatus(0, "")
 }
 

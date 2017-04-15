@@ -1,12 +1,13 @@
 package main
 
 import (
-  
+  "runtime"
   "log"
   "flag"
 )
 
 func main() {
+  runtime.GOMAXPROCS(1)
   filename := flag.String("f", "bot.toml", "Set path for the config file.")
   flag.Parse()
   
@@ -16,7 +17,7 @@ func main() {
     log.Println("FATA:", err)
     return
   }
-  Watch()
+  Watch() // Hot reload
   err = Start()
   if err != nil {
     return
@@ -31,5 +32,4 @@ func main() {
     log.Println("The config file changed:", e.Name)
     KillPlayer()
   })
-
-  */
+*/

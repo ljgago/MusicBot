@@ -1,8 +1,9 @@
 # Example file
 [discord]
-  guild = "154649144376224784" # Guild ID
-  channel = "244880546694788829" # Channel ID
-  token = "ERQ4fdsyNTI0NzsdfD43kJtAw.C5NZotsfG5QV345IGun9fdsah69jOGMsiQ" # Token bot
-  status = "jRock Music"
-  url = "http://audio.misproductions.com/japan128k"
+  token = "YjQ4ODMyNTI0NzG3NDMwsDAw.CdNZBQ.fG5QVSUj7Gunf7CTTh69jG18tiQ" # Token bot
+  status = "Music Bot | !!help"
+  prefix = "!"
+
+[youtube]
+  token = "UIzRSyFyg75iDJbsKhaYk97UtgFriJjbo8uLH57"
 
