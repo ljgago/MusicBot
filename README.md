@@ -21,7 +21,7 @@ go get -u github.com/ljgago/MusicBot
 
 ### Use
 
-**musicbot** use a simple TOML config file.
+**MusicBot** use a simple TOML config file.
 
 ```bash
 MusicBot -f bot.toml
