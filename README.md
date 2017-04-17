@@ -1,10 +1,10 @@
 # MusicBot
 
-**MusicBot** is a multiserver music bot for Discord builded in Go. **MusicBot** plays youtube audio and url radio stream.
+**MusicBot** is a multiserver music bot for Discord built in Go. **MusicBot** plays youtube audio and radio stream url.
 
 ### Characteristics:
 - Plays YouTube audio with query parameters or the url link.
-- Plays url radio stream.
+- Plays radio stream url.
 - Search YouTube videos.
 - Support queue.
 - Support remove song of queue by index, by user or by the last song.
@@ -12,7 +12,7 @@
 
 ### Build and install
 
-You need to have installed in your system **go**, **ffmpeg** and **opus lib** (**opus** and **opusfile**)
+You need to have installed in your system **go**, **ffmpeg** and **OpusLib** (**opus** and **opusfile**)
 
 ```bash
 # Install MusicBot

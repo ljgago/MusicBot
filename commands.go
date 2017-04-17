@@ -3,7 +3,6 @@ package main
 import (
   "log"
   "time"
-  //"errors"
   "strconv"
   "strings"
   "github.com/bwmarrin/discordgo"
@@ -23,7 +22,7 @@ func HelpReporter(m *discordgo.MessageCreate) {
   "**`" + o.DiscordPrefix + "pause`**  ->  pause the player.\n" +
   "**`" + o.DiscordPrefix + "resume`**  ->  resume the player.\n" +
   "**`" + o.DiscordPrefix + "queue list`**  ->  show the list of song in the queue.\n" +
-  "**`" + o.DiscordPrefix + "queue remove `**  ->  remove a song of queue indexed for a `number`, an `@User` or the `last` song.\n    i.e. `"+ o.DiscordPrefix +"queue remove 2`\n" +
+  "**`" + o.DiscordPrefix + "queue remove `**  ->  remove a song of queue indexed for a `number`, an `@User` or the `last` song, i.e. **"+ o.DiscordPrefix +"queue remove 2**\n" +
   "**`" + o.DiscordPrefix + "queue clean`**  ->  clean all queue.\n" +
   "**`" + o.DiscordPrefix + "youtube`**  ->  search from youtube.\n"
   //"**`" + o.DiscordPrefix + "status`** -> change the status of the bot.\n" + 
@@ -36,7 +35,6 @@ func HelpReporter(m *discordgo.MessageCreate) {
 // JoinReporter
 func JoinReporter(v *VoiceInstance, m *discordgo.MessageCreate) {
   log.Println("INFO:", m.Author.Username, "send 'join'")
-
   voiceChannelID := SearchVoiceChannel(m.Author.ID)
   if voiceChannelID == "" {
     log.Println("ERROR: Voice channel id not found.")
@@ -44,7 +42,6 @@ func JoinReporter(v *VoiceInstance, m *discordgo.MessageCreate) {
       "`** You need join in a voice channel!") 
     return
   }
-  
   if v != nil {
     log.Println("INFO: Voice Instance already created.")
     //return
@@ -59,7 +56,6 @@ func JoinReporter(v *VoiceInstance, m *discordgo.MessageCreate) {
     v.speaking = false
     v.InitVoice()
   }
-  
   var err error
   v.voice, err = dg.ChannelVoiceJoin(v.guildID, voiceChannelID, false, true)
   if err != nil {
@@ -67,7 +63,6 @@ func JoinReporter(v *VoiceInstance, m *discordgo.MessageCreate) {
     log.Println("ERROR: Error to join in a voice channel: ", err)
     return
   }
-    
   log.Println("INFO: New Voice Instance created")
   ChMessageSend(m.ChannelID, "[**Music**] I'm in joined a voice channel!")
 }
@@ -75,7 +70,6 @@ func JoinReporter(v *VoiceInstance, m *discordgo.MessageCreate) {
 // LeaveReporter
 func LeaveReporter(v *VoiceInstance, m *discordgo.MessageCreate) {
   log.Println("INFO:", m.Author.Username, "send '!!leave'")
-
   if v == nil {
     log.Println("INFO: The bot is not joined in voice channel")
     return
@@ -83,7 +77,6 @@ func LeaveReporter(v *VoiceInstance, m *discordgo.MessageCreate) {
   go func() {
     v.endSig <- true
   }()
-
   time.Sleep(200 * time.Millisecond)
   v.voice.Disconnect()
   log.Println("INFO: Voice channel destroyed")
@@ -97,13 +90,11 @@ func LeaveReporter(v *VoiceInstance, m *discordgo.MessageCreate) {
 // PlayReporter
 func PlayReporter(v *VoiceInstance, m *discordgo.MessageCreate) {
   log.Println("INFO:", m.Author.Username, "send 'play'")
-
   if v == nil {
     log.Println("INFO: The bot is not joined in voice channel")
     ChMessageSend(m.ChannelID, "[**Music**] I need join in a voice channel!")
     return
   }
-  
   if len(strings.Fields(m.Content)) < 2 {
     ChMessageSend(m.ChannelID, "[**Music**] You need specify an URL.")
     return
@@ -127,7 +118,6 @@ func PlayReporter(v *VoiceInstance, m *discordgo.MessageCreate) {
 // ReadioReporter
 func RadioReporter(v *VoiceInstance, m *discordgo.MessageCreate) {
   log.Println("INFO:", m.Author.Username, "send 'radio'")
-
   if v == nil {
     log.Println("INFO: The bot is not joined in voice channel")
     ChMessageSend(m.ChannelID, "[**Music**] I need join in a voice channel!")
@@ -138,7 +128,6 @@ func RadioReporter(v *VoiceInstance, m *discordgo.MessageCreate) {
     return
   }
   radio := strings.Fields(m.Content)[1]
-  
   go func() {
     v.radioSig <- radio
   }()
@@ -148,7 +137,6 @@ func RadioReporter(v *VoiceInstance, m *discordgo.MessageCreate) {
 // StopReporter
 func StopReporter(v *VoiceInstance, m *discordgo.MessageCreate) {
   log.Println("INFO:", m.Author.Username, "send 'stop'")
-
   if v == nil {
     log.Println("INFO: The bot is not joined in voice channel")
     ChMessageSend(m.ChannelID, "[**Music**] I need join in a voice channel!")
@@ -160,9 +148,9 @@ func StopReporter(v *VoiceInstance, m *discordgo.MessageCreate) {
   ChMessageSend(m.ChannelID, "[**Music**] I'm stoped now!")
 }
 
+// PauseReporter
 func PauseReporter(v *VoiceInstance, m *discordgo.MessageCreate) {
   log.Println("INFO:", m.Author.Username, "send 'pause'")
-  
   if v == nil {
     log.Println("INFO: The bot is not joined in voice channel")
     return
@@ -177,9 +165,9 @@ func PauseReporter(v *VoiceInstance, m *discordgo.MessageCreate) {
   }
 }
 
+// ResumeReporter
 func ResumeReporter(v *VoiceInstance, m *discordgo.MessageCreate) {
   log.Println("INFO:", m.Author.Username, "send 'resume'")
-
   if v == nil {
     log.Println("INFO: The bot is not joined in voice channel")
     ChMessageSend(m.ChannelID, "[**Music**] I need join in a voice channel!")
@@ -198,7 +186,6 @@ func ResumeReporter(v *VoiceInstance, m *discordgo.MessageCreate) {
 // QueueReporter
 func QueueReporter(v *VoiceInstance, m *discordgo.MessageCreate) {
   log.Println("INFO:", m.Author.Username, "send 'queue'")
-  
   if v == nil {
     log.Println("INFO: The bot is not joined in voice channel")
     ChMessageSend(m.ChannelID, "[**Music**] I need join in a voice channel!")
@@ -209,12 +196,10 @@ func QueueReporter(v *VoiceInstance, m *discordgo.MessageCreate) {
     ChMessageSend(m.ChannelID, "[**Music**] The song queue is empty!")
     return
   }
-  
   if len(strings.Fields(m.Content)) < 2 {
     ChMessageSend(m.ChannelID, "[**Music**] You need specify a `sub-command`!")
     return
   }
-
   if strings.Contains(m.Content, "queue clean") {
     log.Println("INFO:", m.Author.Username, "send 'queue clean'")
     v.QueueClean()
@@ -297,8 +282,7 @@ func QueueReporter(v *VoiceInstance, m *discordgo.MessageCreate) {
             dd, _ := strconv.Atoi(d[0])
             duration.Day = duration.Day + dd
         }
-      }
-      
+      }   
       t := AddTimeDuration(duration)
       message = message + "\n\nThe total duration: **`" +
       strconv.Itoa(t.Day) +"d` `" +
@@ -306,7 +290,6 @@ func QueueReporter(v *VoiceInstance, m *discordgo.MessageCreate) {
       strconv.Itoa(t.Minute) +"m` `" +
       strconv.Itoa(t.Second) +"s`**"
     }
-
     ChMessageSend(m.ChannelID, message)
     return
   }
@@ -315,7 +298,6 @@ func QueueReporter(v *VoiceInstance, m *discordgo.MessageCreate) {
 // SkipReporter
 func SkipReporter(v *VoiceInstance, m *discordgo.MessageCreate) {
   log.Println("INFO:", m.Author.Username, "send 'skip'")
-  
   if v == nil {
     log.Println("INFO: The bot is not joined in voice channel")
     ChMessageSend(m.ChannelID, "[**Music**] I need join in a voice channel!")
@@ -326,7 +308,6 @@ func SkipReporter(v *VoiceInstance, m *discordgo.MessageCreate) {
     ChMessageSend(m.ChannelID, "[**Music**] Currently there's no music playing, add some? ;)")
     return
   }
-
   if v.speaking {
     if v.pause {
       ChMessageSend(m.ChannelID, "[**Music**] I'm `PAUSED`, please `resume` first.")

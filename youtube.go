@@ -30,10 +30,6 @@ func YoutubeFind(searchString string, m *discordgo.MessageCreate) (song Song, er
     //log.Fatalf("Error creating new YouTube client: %v", err)
     return
   }
-  /*
-  if strings.HasPrefix(searchString, "https://") {
-    searchString = strings.Split(searchString, "https://www.youtube.com/watch?v=")[1]
-  } */
 
   call := service.Search.List("id,snippet").Q(searchString).MaxResults(1)
   response, err := call.Do()
@@ -54,35 +50,15 @@ func YoutubeFind(searchString string, m *discordgo.MessageCreate) (song Song, er
     ChMessageSend(m.ChannelID, "Sorry, I can't found this song.")
     return
   }
-
   vid, err := ytdl.GetVideoInfo("https://www.youtube.com/watch?v=" + audioId)
   if err != nil {
     //ChMessageSend(textChannelID, "Sorry, nothing found for query: "+strings.Trim(searchString, " "))
     return
   }
-
-  //format := vid.Formats.Extremes(ytdl.FormatResolutionKey, false)[0]
   format := vid.Formats.Extremes(ytdl.FormatAudioBitrateKey, true)[0]
-  //format := vid.Formats.Filter(ytdl.FormatAudioBitrateKey, []interface{}{"360p", "480p", "96", "128"})[0]
   videoURL, _ := vid.GetDownloadURL(format)
   videoURLString := videoURL.String()
 
-  /*
-  if len(vi.queue) > 0 {
-    for _, v := range vi.queue {
-      if v.ID == vid.ID {
-        fileVideoID = vid.ID + "_" + strconv.FormatInt(time.Now().UTC().UnixNano(), 10)
-        break
-      } else {
-        fileVideoID = vid.ID
-      }
-    }
-  } else {
-    fileVideoID = vid.ID
-  }
-  */
-
-  
   videos := service.Videos.List("contentDetails").Id(vid.ID)
   resp, err := videos.Do()
   
@@ -137,13 +113,10 @@ func YoutubeFind(searchString string, m *discordgo.MessageCreate) (song Song, er
     m.ChannelID,
     m.Author.Username,
     vid.ID,
-    //fileVideoID,
     audioTitle,
     durationString,
     videoURLString,
   }
-
   //vi.queue = append(queue, song)
- 
   return 
 }

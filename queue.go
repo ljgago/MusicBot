@@ -1,7 +1,7 @@
 package main
 
 // QueueGetSong
-func (v VoiceInstance) QueueGetSong() (song Song) {
+func (v *VoiceInstance) QueueGetSong() (song Song) {
   v.queueMutex.Lock()
   defer v.queueMutex.Unlock()
   if len(v.queue) != 0 {
@@ -21,7 +21,6 @@ func (v *VoiceInstance) QueueAdd(song Song) {
 func (v *VoiceInstance) QueueRemoveFisrt() {
   v.queueMutex.Lock()
   defer v.queueMutex.Unlock()
-  
   if len(v.queue) != 0 {
     v.queue = v.queue[1:]
   }
@@ -33,7 +32,6 @@ func (v *VoiceInstance) QueueRemoveIndex(k int) {
   defer v.queueMutex.Unlock()
   if len(v.queue) != 0 && k <= len(v.queue) {
     v.queue = append(v.queue[:k], v.queue[k+1:]...)
-    
   }
 }
 
@@ -41,7 +39,6 @@ func (v *VoiceInstance) QueueRemoveIndex(k int) {
 func (v *VoiceInstance) QueueRemoveUser(user string) {
   v.queueMutex.Lock()
   defer v.queueMutex.Unlock()
-  //temp := []Song{}
   queue := v.queue
   v.queue = []Song{}
   if len(v.queue) != 0 {
@@ -57,7 +54,6 @@ func (v *VoiceInstance) QueueRemoveUser(user string) {
 func (v *VoiceInstance) QueueRemoveLast() {
   v.queueMutex.Lock()
   defer v.queueMutex.Unlock()
-
   if len(v.queue) != 0 {
     v.queue = append(v.queue[:len(v.queue)-1], v.queue[len(v.queue):]...)
   }

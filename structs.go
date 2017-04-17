@@ -5,7 +5,6 @@ import (
   "os/exec"
   "github.com/bwmarrin/discordgo"
   "gopkg.in/hraban/opus.v2"
-
 )
 
 type Options struct {
@@ -26,7 +25,6 @@ type Song struct {
   ChannelID       string
   User            string
   ID              string
-  //QueueID         string
   Title           string
   Duration        string
   VideoURL        string
@@ -39,7 +37,6 @@ type PurgeMessage struct {
 
 type VoiceInstance struct {
   voice           *discordgo.VoiceConnection
-  //msg             *discordgo.MessageCreate
   play_wg         *sync.WaitGroup
   opusEncoder     *opus.Encoder
   run             *exec.Cmd

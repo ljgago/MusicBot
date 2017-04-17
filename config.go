@@ -19,7 +19,6 @@ func LoadConfig(filename string) (err error){
   if err != nil {
     return err
   }
-  
   if o.DiscordToken = viper.GetString("discord.token"); o.DiscordToken == "" {
     return errors.New("'token' must be present in config file")
   }

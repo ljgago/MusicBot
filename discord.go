@@ -3,7 +3,6 @@ package main
 import (
   "log"
   "time"
-  //"errors"
   "strings"
   "github.com/bwmarrin/discordgo"
 )
@@ -11,7 +10,6 @@ import (
 
 // DiscordConnect make a new connection to Discord
 func DiscordConnect() (err error) {
-  
   dg, err = discordgo.New("Bot " + o.DiscordToken)
   if err != nil {
     log.Println("FATA: error creating Discord session,", err)
@@ -41,7 +39,6 @@ func DiscordConnect() (err error) {
   // Purge time of 30 sec
   purgeTime = 60
   purgeRoutine()
-
   dg.UpdateStatus(0, o.DiscordStatus)
   
   return nil
@@ -77,30 +74,23 @@ func SearchGuild(textChannelID string) (guildID string) {
 
 // AddTimeDuration calculate the total time duration
 func AddTimeDuration(t TimeDuration) (total TimeDuration) {
-    
   total.Second =  t.Second % 60
   t.Minute = t.Minute + t.Second / 60
-
   total.Minute = t.Minute % 60
   t.Hour = t.Hour + t.Minute / 60
-
   total.Hour = t.Hour % 24
   total.Day = t.Day + t.Hour / 24
-  
   return
 }
 
 // ChMessageSendEmbed
 func ChMessageSendEmbed(textChannelID, title, description string) {
   embed := discordgo.MessageEmbed{}
-
   embed.Title = title
   embed.Description = description
   embed.Color = 0xb20000
-
   for i := 0; i < 10; i++ {
     msg, err := dg.ChannelMessageSendEmbed(textChannelID, &embed)
-
     if err != nil {
       time.Sleep(1 * time.Second)
       continue
@@ -114,7 +104,6 @@ func ChMessageSendEmbed(textChannelID, title, description string) {
 func ChMessageSendHold(textChannelID, message string) {
   for i := 0; i < 10; i++ {
     _, err := dg.ChannelMessageSend(textChannelID, message)
-
     if err != nil {
       time.Sleep(1 * time.Second)
       continue
@@ -127,7 +116,6 @@ func ChMessageSendHold(textChannelID, message string) {
 func ChMessageSend(textChannelID, message string) {
   for i := 0; i < 10; i++ {
     msg, err := dg.ChannelMessageSend(textChannelID, message)
-
     if err != nil {
       time.Sleep(1 * time.Second)
       continue
@@ -140,13 +128,11 @@ func ChMessageSend(textChannelID, message string) {
 func msgToPurgeQueue(m *discordgo.Message) {
   if purgeTime > 0 {
     timestamp := time.Now().UTC().Unix()
-
     message := PurgeMessage{
       m.ID,
       m.ChannelID,
       timestamp,
     }
-
     purgeQueue = append(purgeQueue, message)
   }
 }
@@ -159,9 +145,7 @@ func purgeRoutine() {
         for k, v := range purgeQueue {
           if time.Now().Unix()-purgeTime > v.TimeSent {
             purgeQueue = append(purgeQueue[:k], purgeQueue[k+1:]...)
-
             dg.ChannelMessageDelete(v.ChannelID, v.ID)
-
             // Break at first match to avoid panic, timing isn't that important here
             break
           }
@@ -181,7 +165,6 @@ func GuildCreateHandler(s *discordgo.Session, guild *discordgo.GuildCreate) {
 // GuildDeleteHandler
 func GuildDeleteHandler(s *discordgo.Session, guild *discordgo.GuildDelete) {
   log.Println("INFO: Guild Delete:", guild.ID)
-  
   v := voiceInstances[guild.ID]
   if v != nil {
     go func() {
@@ -196,16 +179,13 @@ func GuildDeleteHandler(s *discordgo.Session, guild *discordgo.GuildDelete) {
 
 // MessageCreateHandler
 func MessageCreateHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
-
   if !strings.HasPrefix(m.Content, o.DiscordPrefix) {
     return
   }
   guildID := SearchGuild(m.ChannelID)
   v := voiceInstances[guildID]
-
   content := strings.Replace(m.Content, o.DiscordPrefix, "", 1)
   command := strings.Fields(content)
-
   switch(command[0]) {
     case "help", "h":
       HelpReporter(m)
