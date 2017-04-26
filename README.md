@@ -38,14 +38,14 @@ Edit and rename **_bot.toml.sample_** to **_bot.toml_**
 ```bash
 # Run docker
 docker build -t musicbot-img .
-docker run --name musicbot --restart always -it musicbot-img
+docker run -d --name musicbot --restart always -it musicbot-img
 ```
 
 If you have docker-compose:
 
 ```bash
 # Run docker-compose (automatic build and run)
-docker-compose up
+docker-compose up -d
 ```
 
 ### Example bot.toml config file:
