@@ -84,7 +84,7 @@ func LeaveReporter(v *VoiceInstance, m *discordgo.MessageCreate) {
   delete(voiceInstances, v.guildID)
   mutex.Unlock()
   dg.UpdateStatus(0, o.DiscordStatus)
-  ChMessageSend(m.ChannelID, "[**Music**] I left from voice channel!")
+  ChMessageSend(m.ChannelID, "[**Music**] I left the voice channel!")
 }
 
 // PlayReporter
