@@ -11,4 +11,5 @@ var (
   purgeTime         int64
   purgeQueue        []PurgeMessage
   mutex             sync.Mutex
+  //ignore            = map[string]bool{}
 )

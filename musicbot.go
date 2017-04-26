@@ -16,19 +16,18 @@ func main() {
     log.Println("FATA:", err)
     return
   }
-  Watch() // Hot reload
-  err = Start()
+  // Hot reload
+  Watch()
+  // Connecto to Discord
+  err = DiscordConnect()
   if err != nil {
+    log.Println("FATA: Discord", err)
+    return
+  }
+  err = CreateDB()
+  if err != nil {
+    log.Println("FATA: DB", err)
     return
   }
   <-make(chan struct{})
 }
-
-/*
-// Hot reload
-  viper.WatchConfig()
-  viper.OnConfigChange(func (e fsnotify.Event) {
-    log.Println("The config file changed:", e.Name)
-    KillPlayer()
-  })
-*/

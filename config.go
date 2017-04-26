@@ -28,6 +28,15 @@ func LoadConfig(filename string) (err error){
   if o.DiscordPrefix = viper.GetString("discord.prefix"); o.DiscordPrefix == "" {
     return errors.New("'prefix' must be present in config file")
   }
+  if o.DiscordPurgeTime = viper.GetInt64("discord.purgetime"); o.DiscordPurgeTime < 0 {
+    return errors.New("'purgetime' must be major or equal to 0")
+  }
+  o.DiscordPlayStatus = viper.GetBool("discord.playstatus")
+  if o.DiscordPlayStatus == true {
+    log.Println("INFO: 'playstatus' true")
+  } else {
+    log.Println("INFO: 'playstatus' not set or false")
+  }
   if o.YoutubeToken = viper.GetString("youtube.token"); o.YoutubeToken == "" {
     return errors.New("'token' must be present in config file")
   }

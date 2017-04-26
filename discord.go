@@ -7,7 +7,6 @@ import (
   "github.com/bwmarrin/discordgo"
 )
 
-
 // DiscordConnect make a new connection to Discord
 func DiscordConnect() (err error) {
   dg, err = discordgo.New("Bot " + o.DiscordToken)
@@ -31,25 +30,10 @@ func DiscordConnect() (err error) {
     log.Println("FATA:", err)
     return
   } // Login successful
-  //d.Session.UpdateStatus(0, "")
   log.Println("INFO: Bot user test")
-  //log.Println("INFO: Playing", o.Status)
-  //log.Println("INFO:", o.Url)
   log.Println("INFO: Bot is now running. Press CTRL-C to exit.")
-  // Purge time of 30 sec
-  purgeTime = 60
   purgeRoutine()
   dg.UpdateStatus(0, o.DiscordStatus)
-  
-  return nil
-}
-
-// Start connect to discord and join to channel
-func Start() (err error) {
-  if err = DiscordConnect(); err != nil {
-    log.Println("FATA:", err)
-    return err
-  }
   return nil
 }
 
@@ -125,8 +109,9 @@ func ChMessageSend(textChannelID, message string) {
   }
 }
 
+// msgToPurgeQueue
 func msgToPurgeQueue(m *discordgo.Message) {
-  if purgeTime > 0 {
+  if o.DiscordPurgeTime > 0 {
     timestamp := time.Now().UTC().Unix()
     message := PurgeMessage{
       m.ID,
@@ -137,29 +122,26 @@ func msgToPurgeQueue(m *discordgo.Message) {
   }
 }
 
+// purgeRoutine
 func purgeRoutine() { 
-  if purgeTime > 0 {
-    go func() {
-      for {
-        // TODO: There's even no need for range here, should be the zero element every time
-        for k, v := range purgeQueue {
-          if time.Now().Unix()-purgeTime > v.TimeSent {
-            purgeQueue = append(purgeQueue[:k], purgeQueue[k+1:]...)
-            dg.ChannelMessageDelete(v.ChannelID, v.ID)
-            // Break at first match to avoid panic, timing isn't that important here
-            break
-          }
+  go func() {
+    for {
+      for k, v := range purgeQueue {
+        if time.Now().Unix()- o.DiscordPurgeTime > v.TimeSent {
+          purgeQueue = append(purgeQueue[:k], purgeQueue[k+1:]...)
+          dg.ChannelMessageDelete(v.ChannelID, v.ID)
+          // Break at first match to avoid panic, timing isn't that important here
+          break
         }
-        time.Sleep(time.Second * 1)
       }
-    }()
-  }
+      time.Sleep(time.Second * 1)
+    }
+  }()
 }
 
 // GuildCreateHandler
 func GuildCreateHandler(s *discordgo.Session, guild *discordgo.GuildCreate) {
   log.Println("INFO: Guild Create:", guild.ID)
-  //GuildCreate(guild)
 }
 
 // GuildDeleteHandler
@@ -182,10 +164,63 @@ func MessageCreateHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
   if !strings.HasPrefix(m.Content, o.DiscordPrefix) {
     return
   }
+  /*
+  // Method with memory (volatile)
   guildID := SearchGuild(m.ChannelID)
   v := voiceInstances[guildID]
+  owner, _:= s.Guild(guildID)
   content := strings.Replace(m.Content, o.DiscordPrefix, "", 1)
   command := strings.Fields(content)
+  if len(command) == 0 {
+    return
+  }
+  if owner.OwnerID == m.Author.ID {
+    if strings.HasPrefix(command[0], "ignore") {
+      ignore[m.ChannelID] = true
+      ChMessageSend(m.ChannelID, "[**Music**] `Ignoring` comands in this channel!")
+    }
+    if strings.HasPrefix(command[0], "unignore") {
+      if ignore[m.ChannelID] == true {
+        delete(ignore, m.ChannelID)
+        ChMessageSend(m.ChannelID, "[**Music**] `Unignoring` comands in this channel!")
+      } 
+    }
+  }
+  if ignore[m.ChannelID] == true {
+    return
+  }
+  */
+  // Method with database (persistent)
+  guildID := SearchGuild(m.ChannelID)
+  v := voiceInstances[guildID]
+  owner, _:= s.Guild(guildID)
+  content := strings.Replace(m.Content, o.DiscordPrefix, "", 1)
+  command := strings.Fields(content)
+  if len(command) == 0 {
+    return
+  }
+  if owner.OwnerID == m.Author.ID {
+    if strings.HasPrefix(command[0], "ignore") {
+      err := PutDB(m.ChannelID, "true")
+      if err == nil {
+        ChMessageSend(m.ChannelID, "[**Music**] `Ignoring` comands in this channel!")
+      } else {
+        log.Println("FATA: Error writing in DB,", err)
+      }
+    }
+    if strings.HasPrefix(command[0], "unignore") {
+      err := PutDB(m.ChannelID, "false")
+      if err == nil {
+        ChMessageSend(m.ChannelID, "[**Music**] `Unignoring` comands in this channel!")
+      } else {
+        log.Println("FATA: Error writing in DB,", err)
+      }
+    }
+  }
+  if GetDB(m.ChannelID) == "true" {
+    return
+  }
+
   switch(command[0]) {
     case "help", "h":
       HelpReporter(m)

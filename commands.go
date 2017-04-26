@@ -22,11 +22,12 @@ func HelpReporter(m *discordgo.MessageCreate) {
   "**`" + o.DiscordPrefix + "pause`**  ->  pause the player.\n" +
   "**`" + o.DiscordPrefix + "resume`**  ->  resume the player.\n" +
   "**`" + o.DiscordPrefix + "queue list`**  ->  show the list of song in the queue.\n" +
-  "**`" + o.DiscordPrefix + "queue remove `**  ->  remove a song of queue indexed for a `number`, an `@User` or the `last` song, i.e. **"+ o.DiscordPrefix +"queue remove 2**\n" +
+  "**`" + o.DiscordPrefix + "queue remove `**  ->  remove a song of queue indexed for a ***number***, an ***@User*** or the ***last*** song, i.e. ***"+ o.DiscordPrefix +"queue remove 2***\n" +
   "**`" + o.DiscordPrefix + "queue clean`**  ->  clean all queue.\n" +
-  "**`" + o.DiscordPrefix + "youtube`**  ->  search from youtube.\n"
-  //"**`" + o.DiscordPrefix + "status`** -> change the status of the bot.\n" + 
-  //"**`" + o.DiscordPrefix + "statusclean`** -> clean the status of the bot.\n"
+  "**`" + o.DiscordPrefix + "youtube`**  ->  search from youtube.\n\n" +
+  "```go\n`Owner Commands List`\n```\n" +
+  "**`" + o.DiscordPrefix + "ignore`**  ->  ignore commands of a channel.\n" +
+  "**`" + o.DiscordPrefix + "unignore`**  ->  unignore commands of a channel.\n"
 
   ChMessageSend(m.ChannelID, help)
   //ChMessageSendEmbed(m.ChannelID, "Help", help)
@@ -44,7 +45,6 @@ func JoinReporter(v *VoiceInstance, m *discordgo.MessageCreate) {
   }
   if v != nil {
     log.Println("INFO: Voice Instance already created.")
-    //return
   } else {
     guildID := SearchGuild(m.ChannelID)
     // create new voice instance
@@ -53,23 +53,23 @@ func JoinReporter(v *VoiceInstance, m *discordgo.MessageCreate) {
     voiceInstances[guildID] = v
     mutex.Unlock()
     v.guildID = guildID
-    v.speaking = false
     v.InitVoice()
   }
   var err error
-  v.voice, err = dg.ChannelVoiceJoin(v.guildID, voiceChannelID, false, true)
+  v.voice, err = dg.ChannelVoiceJoin(v.guildID, voiceChannelID, false, false)
   if err != nil {
     v.Stop()
     log.Println("ERROR: Error to join in a voice channel: ", err)
     return
   }
+  v.voice.Speaking(false)
   log.Println("INFO: New Voice Instance created")
-  ChMessageSend(m.ChannelID, "[**Music**] I'm in joined a voice channel!")
+  ChMessageSend(m.ChannelID, "[**Music**] I've joined a voice channel!")
 }
 
 // LeaveReporter
 func LeaveReporter(v *VoiceInstance, m *discordgo.MessageCreate) {
-  log.Println("INFO:", m.Author.Username, "send '!!leave'")
+  log.Println("INFO:", m.Author.Username, "send 'leave'")
   if v == nil {
     log.Println("INFO: The bot is not joined in voice channel")
     return
@@ -308,12 +308,8 @@ func SkipReporter(v *VoiceInstance, m *discordgo.MessageCreate) {
     ChMessageSend(m.ChannelID, "[**Music**] Currently there's no music playing, add some? ;)")
     return
   }
-  if v.speaking {
-    if v.pause {
-      ChMessageSend(m.ChannelID, "[**Music**] I'm `PAUSED`, please `resume` first.")
-    } else {
-      v.KillPlayer()
-    }
+  if v.Skip() {
+    ChMessageSend(m.ChannelID, "[**Music**] I'm `PAUSED`, please `resume` first.")
   }
 }
 
