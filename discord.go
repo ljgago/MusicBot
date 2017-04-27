@@ -238,6 +238,8 @@ func MessageCreateHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
       PauseReporter(v, m)
     case "resume":
       ResumeReporter(v, m)
+    case "time":
+      TimeReporter(v, m)
     case "queue":
       QueueReporter(v, m)
     case "skip":
