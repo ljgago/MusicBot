@@ -35,12 +35,10 @@ func (v *VoiceInstance) Play(songSig chan Song, radioSig chan string, endSig cha
         v.Stop()
         time.Sleep(200 * time.Millisecond)  
         go v.Radio(radio)
-      case end := <-endSig:
-        if end == true {
-          v.Stop()
-          time.Sleep(200 * time.Millisecond)
-        }
+      case <-endSig:
+        v.Stop()
         return
+        //time.Sleep(200 * time.Millisecond)
     }
   }
 }
