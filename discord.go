@@ -33,6 +33,7 @@ func DiscordConnect() (err error) {
   log.Println("INFO: Bot user test")
   log.Println("INFO: Bot is now running. Press CTRL-C to exit.")
   purgeRoutine()
+  initRoutine()
   dg.UpdateStatus(0, o.DiscordStatus)
   return nil
 }
@@ -139,6 +140,13 @@ func purgeRoutine() {
   }()
 }
 
+func initRoutine() {
+  songSignal = make(chan PkgSong)
+  radioSignal = make(chan PkgRadio)
+  go GlobalPlay(songSignal)
+  go GlobalRadio(radioSignal)
+}
+
 // GuildCreateHandler
 func GuildCreateHandler(s *discordgo.Session, guild *discordgo.GuildCreate) {
   log.Println("INFO: Guild Create:", guild.ID)
@@ -149,9 +157,7 @@ func GuildDeleteHandler(s *discordgo.Session, guild *discordgo.GuildDelete) {
   log.Println("INFO: Guild Delete:", guild.ID)
   v := voiceInstances[guild.ID]
   if v != nil {
-    go func() {
-      v.endSig <- true
-    }()
+    v.Stop()
     time.Sleep(200 * time.Millisecond)
     mutex.Lock()
     delete(voiceInstances, guild.ID)
@@ -225,7 +231,7 @@ func MessageCreateHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
     case "help", "h":
       HelpReporter(m)
     case "join", "j":
-      JoinReporter(v, m)
+      JoinReporter(v, m, s)
     case "leave", "l":
       LeaveReporter(v, m)
     case "play":
@@ -245,7 +251,7 @@ func MessageCreateHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
     case "skip":
       SkipReporter(v, m)
     case "youtube":
-      YoutubeReporter(m)
+      YoutubeReporter(v, m)
     default:
       return
   }

@@ -1,6 +1,7 @@
 package main
 
 import (
+  "log"
   //"time"
   "regexp"
   "net/http"
@@ -12,7 +13,7 @@ import (
 )
 
 
-func YoutubeFind(searchString string, m *discordgo.MessageCreate) (song Song, err error) { //(url, title, time string, err error)
+func YoutubeFind(searchString string, v *VoiceInstance, m *discordgo.MessageCreate) (song_struct PkgSong, err error) { //(url, title, time string, err error)
   // YouTube
   var rxpDurationDays, rxpDurationHours, rxpDurationMinutes, rxpDurationSeconds *regexp.Regexp
 
@@ -50,14 +51,22 @@ func YoutubeFind(searchString string, m *discordgo.MessageCreate) (song Song, er
     ChMessageSend(m.ChannelID, "Sorry, I can't found this song.")
     return
   }
+
   vid, err := ytdl.GetVideoInfo("https://www.youtube.com/watch?v=" + audioId)
   if err != nil {
     //ChMessageSend(textChannelID, "Sorry, nothing found for query: "+strings.Trim(searchString, " "))
     return
   }
   format := vid.Formats.Extremes(ytdl.FormatAudioBitrateKey, true)[0]
-  videoURL, _ := vid.GetDownloadURL(format)
-  videoURLString := videoURL.String()
+  videoURL, err := vid.GetDownloadURL(format)
+  //log.Println(err)
+  var videoURLString string
+  if videoURL != nil {
+    videoURLString = videoURL.String()
+  } else {
+    log.Println("Error raro")
+  }
+  
 
   videos := service.Videos.List("contentDetails").Id(vid.ID)
   resp, err := videos.Do()
@@ -109,14 +118,27 @@ func YoutubeFind(searchString string, m *discordgo.MessageCreate) (song Song, er
     durationString = durationString + "00"
   }
 
-  song = Song{
+  guildID := SearchGuild(m.ChannelID)
+  member, _ := v.session.GuildMember(guildID, m.Author.ID) 
+  name := ""
+  if member.Nick == "" {
+    name = m.Author.Username
+  } else {
+    name = member.Nick
+  }
+
+  song := Song{
     m.ChannelID,
-    m.Author.Username,
+    name,
+    m.Author.ID,
     vid.ID,
     audioTitle,
     durationString,
     videoURLString,
   }
-  //vi.queue = append(queue, song)
+
+  song_struct.data = song
+  song_struct.v = v
+
   return 
 }

@@ -11,5 +11,7 @@ var (
   purgeTime         int64
   purgeQueue        []PurgeMessage
   mutex             sync.Mutex
+  songSignal        chan PkgSong
+  radioSignal       chan PkgRadio          
   //ignore            = map[string]bool{}
 )

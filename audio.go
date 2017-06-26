@@ -14,14 +14,16 @@ const (
   bufferSize  int = 1024      // max size of opus data 1K
 )
 
+/*
 func (v *VoiceInstance) InitVoice() {
-  v.songSig = make(chan Song)
-  v.radioSig = make(chan string)
+  v.songSig = make(chan PkgSong)
+  v.radioSig = make(chan PkgRadio)
   v.endSig = make(chan bool)
   v.speaking = false
   go v.Play(v.songSig, v.radioSig, v.endSig)
 }
-
+*/
+/*
 func (v *VoiceInstance) Play(songSig chan Song, radioSig chan string, endSig chan bool) {
   for {
     select {
@@ -39,6 +41,31 @@ func (v *VoiceInstance) Play(songSig chan Song, radioSig chan string, endSig cha
         v.Stop()
         return
         //time.Sleep(200 * time.Millisecond)
+    }
+  }
+}
+*/
+
+func GlobalPlay(songSig chan PkgSong) {
+  for {
+    select {
+      case song := <-songSig:
+        if song.v.radioFlag {
+          song.v.Stop()
+          time.Sleep(200 * time.Millisecond)
+        }
+        go song.v.PlayQueue(song.data)
+    }
+  }
+}
+
+func GlobalRadio(radioSig chan PkgRadio) {
+  for {
+    select {
+      case radio := <-radioSig:
+        radio.v.Stop()
+        time.Sleep(200 * time.Millisecond)  
+        go radio.v.Radio(radio.data)
     }
   }
 }
@@ -61,7 +88,7 @@ func (v *VoiceInstance) PlayQueue(song Song) {
       }
       v.nowPlaying = v.QueueGetSong()
       go ChMessageSend(v.nowPlaying.ChannelID, "[**Music**] Playing, **`" + 
-        v.nowPlaying.Title + "`  -  `("+ v.nowPlaying.Duration +")`**")
+        v.nowPlaying.Title + "`  -  `("+ v.nowPlaying.Duration +")`  -  **<@"+v.nowPlaying.ID+">\n")//*`"+ v.nowPlaying.User +"`***")
       // If monoserver
       if o.DiscordPlayStatus {
         dg.UpdateStatus(0, v.nowPlaying.Title)

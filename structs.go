@@ -29,6 +29,7 @@ type Song struct {
   ChannelID           string
   User                string
   ID                  string
+  VidID               string
   Title               string
   Duration            string
   VideoURL            string
@@ -43,18 +44,24 @@ type Channel struct {
   db                  *bolt.DB
 }
 
+type PkgSong struct {
+  data                Song
+  v                   *VoiceInstance
+}
+
+type PkgRadio struct {
+  data                string
+  v                   *VoiceInstance
+}
+
 type VoiceInstance struct {
   voice               *discordgo.VoiceConnection
   session             *discordgo.Session
   encoder             *dca.EncodeSession
   stream              *dca.StreamingSession
-  play_wg             *sync.WaitGroup
   run                 *exec.Cmd
   queueMutex          sync.Mutex
   audioMutex          sync.Mutex
-  songSig             chan Song
-  radioSig            chan string
-  endSig              chan bool
   nowPlaying          Song
   queue               []Song
   recv                []int16

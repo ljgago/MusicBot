@@ -36,13 +36,12 @@ func HelpReporter(m *discordgo.MessageCreate) {
 }
 
 // JoinReporter
-func JoinReporter(v *VoiceInstance, m *discordgo.MessageCreate) {
+func JoinReporter(v *VoiceInstance, m *discordgo.MessageCreate, s *discordgo.Session) {
   log.Println("INFO:", m.Author.Username, "send 'join'")
   voiceChannelID := SearchVoiceChannel(m.Author.ID)
   if voiceChannelID == "" {
     log.Println("ERROR: Voice channel id not found.")
-    ChMessageSend(m.ChannelID, "[**Music**] **`"+ m.Author.Username +
-      "`** You need to join a voice channel!") 
+    ChMessageSend(m.ChannelID, "[**Music**] <@"+ m.Author.ID +"> You need to join a voice channel!") 
     return
   }
   if v != nil {
@@ -51,11 +50,12 @@ func JoinReporter(v *VoiceInstance, m *discordgo.MessageCreate) {
     guildID := SearchGuild(m.ChannelID)
     // create new voice instance
     v = new(VoiceInstance)
-    mutex.Lock()
+    //mutex.Lock()
     voiceInstances[guildID] = v
-    mutex.Unlock()
+    //mutex.Unlock()
     v.guildID = guildID
-    v.InitVoice()
+    v.session = s
+    //v.InitVoice()
   }
   var err error
   v.voice, err = dg.ChannelVoiceJoin(v.guildID, voiceChannelID, false, false)
@@ -76,9 +76,7 @@ func LeaveReporter(v *VoiceInstance, m *discordgo.MessageCreate) {
     log.Println("INFO: The bot is not joined in a voice channel")
     return
   }
-  go func() {
-    v.endSig <- true
-  }()
+  v.Stop()
   time.Sleep(200 * time.Millisecond)
   v.voice.Disconnect()
   log.Println("INFO: Voice channel destroyed")
@@ -98,22 +96,29 @@ func PlayReporter(v *VoiceInstance, m *discordgo.MessageCreate) {
     return
   }
   if len(strings.Fields(m.Content)) < 2 {
-    ChMessageSend(m.ChannelID, "[**Music**] You need specify an URL.")
+    ChMessageSend(m.ChannelID, "[**Music**] You need specify a name or URL.")
     return
   } 
+  // if the user is not a voice channel not accept the command
+  voiceChannelID := SearchVoiceChannel(m.Author.ID)
+  if v.voice.ChannelID != voiceChannelID {
+    ChMessageSend(m.ChannelID, "[**Music**] <@"+ m.Author.ID +"> You need to join in my voice channel for send play!")
+    return
+  }
   // send play my_song_youtube
   command := strings.SplitAfter(m.Content, strings.Fields(m.Content)[0])
   query := strings.TrimSpace(command[1])
-  song, err := YoutubeFind(query, m)
-  if err != nil || song.ID == "" {
+  song, err := YoutubeFind(query, v, m)
+  if err != nil || song.data.ID == "" {
     log.Println("ERROR: Youtube search: ", err)
     ChMessageSend(m.ChannelID, "[**Music**] I can't found this song!")
     return
   }
-  ChMessageSend(m.ChannelID, "[**Music**] **`"+ song.User +"`** has added , **`"+ 
-    song.Title +"`** to the queue. **`("+ song.Duration+ ")` `["+ strconv.Itoa(len(v.queue)) +"]`**")
+  //***`"+ song.data.User +"`***
+  ChMessageSend(m.ChannelID, "[**Music**] **`"+ song.data.User +"`** has added , **`"+ 
+    song.data.Title +"`** to the queue. **`("+ song.data.Duration +")` `["+ strconv.Itoa(len(v.queue)) +"]`**")
   go func() {
-    v.songSig <- song
+    songSignal <- song
   }() 
 }
 
@@ -129,11 +134,13 @@ func RadioReporter(v *VoiceInstance, m *discordgo.MessageCreate) {
     ChMessageSend(m.ChannelID, "[**Music**] You need to specify a url!")
     return
   }
-  radio := strings.Fields(m.Content)[1]
+  radio := PkgRadio{"", v}
+  radio.data = strings.Fields(m.Content)[1]
+
   go func() {
-    v.radioSig <- radio
+    radioSignal <- radio
   }()
-  ChMessageSend(m.ChannelID, "[**Music**] `"+ m.Author.Username +"` I'm playing a radio now!")
+  ChMessageSend(m.ChannelID, "[**Music**] *`"+ m.Author.Username +"`* I'm playing a radio now!")
 }
 
 // StopReporter
@@ -142,6 +149,11 @@ func StopReporter(v *VoiceInstance, m *discordgo.MessageCreate) {
   if v == nil {
     log.Println("INFO: The bot is not joined in a voice channel")
     ChMessageSend(m.ChannelID, "[**Music**] I need join in a voice channel!")
+    return
+  }
+  voiceChannelID := SearchVoiceChannel(m.Author.ID)
+  if v.voice.ChannelID != voiceChannelID {
+    ChMessageSend(m.ChannelID, "[**Music**] <@"+ m.Author.ID +"> You need to join in my voice channel for send stop!")
     return
   }
   v.Stop()
@@ -202,14 +214,14 @@ func TimeReporter(v *VoiceInstance, m *discordgo.MessageCreate) {
       t := AddTimeDuration(duration)
       
       if len(strings.Split(v.nowPlaying.Duration, ":")) == 2 {
-        message = fmt.Sprintf("[**Music**] The playback time of **`%s`**  is  **`(%d:%02d)`**  of  **`(%s)`**", 
-        v.nowPlaying.Title, t.Minute, t.Second, v.nowPlaying.Duration)
+        message = fmt.Sprintf("[**Music**] The playback time of **`%s`**  is  **`(%d:%02d)`**  of  **`(%s)`**  -  **`%s`**", 
+        v.nowPlaying.Title, t.Minute, t.Second, v.nowPlaying.Duration, v.nowPlaying.User)
       } else if len(strings.Split(v.nowPlaying.Duration, ":")) == 3 {
-        message = fmt.Sprintf("[**Music**] The playback time of **`%s`**  is  **`(%d:%02d:%02d)`**  of  **`(%s)`**", 
-        v.nowPlaying.Title, t.Hour, t.Minute, t.Second, v.nowPlaying.Duration)
+        message = fmt.Sprintf("[**Music**] The playback time of **`%s`**  is  **`(%d:%02d:%02d)`**  of  **`(%s)`**  -  **`%s`**", 
+        v.nowPlaying.Title, t.Hour, t.Minute, t.Second, v.nowPlaying.Duration, v.nowPlaying.User)
       } else if len(strings.Split(v.nowPlaying.Duration, ":")) == 4 {
-        message = fmt.Sprintf("[**Music**] The playback time of **`%s`**  is  **`(%d:%02d:%02d:%02d)`**  of  **`(%s)`**", 
-        v.nowPlaying.Title, t.Day, t.Hour, t.Minute, t.Second, v.nowPlaying.Duration)
+        message = fmt.Sprintf("[**Music**] The playback time of **`%s`**  is  **`(%d:%02d:%02d:%02d)`**  of  **`(%s)`**  -  **`%s`**", 
+        v.nowPlaying.Title, t.Day, t.Hour, t.Minute, t.Second, v.nowPlaying.Duration, v.nowPlaying.User)
       }
       ChMessageSend(m.ChannelID, message)
       return
@@ -234,13 +246,18 @@ func QueueReporter(v *VoiceInstance, m *discordgo.MessageCreate) {
     ChMessageSend(m.ChannelID, "[**Music**] You need specify a `sub-command`!")
     return
   }
-  if strings.Contains(m.Content, "queue clean") {
+  if strings.HasSuffix(m.Content, "queue clean") {
     log.Println("INFO:", m.Author.Username, "send 'queue clean'")
     v.QueueClean()
     ChMessageSend(m.ChannelID, "[**Music**] Queue cleaned")
     return
   }
   if strings.Contains(m.Content, "queue remove") {
+    voiceChannelID := SearchVoiceChannel(m.Author.ID)
+    if v.voice.ChannelID != voiceChannelID {
+      ChMessageSend(m.ChannelID, "[**Music**] <@"+ m.Author.ID +"> You need to join in my voice channel to remove of queue!")
+      return
+    }
     log.Println("INFO:", m.Author.Username, "send 'queue remove'")
     if len(strings.Fields(m.Content)) != 3 {
       ChMessageSend(m.ChannelID, "[**Music**] You need define a `number`, an `@User` or `last` command")
@@ -265,7 +282,7 @@ func QueueReporter(v *VoiceInstance, m *discordgo.MessageCreate) {
       return
     }
     // the `last` song?
-    if strings.Contains(m.Content, "queue remove last") {
+    if strings.HasSuffix(m.Content, "queue remove last") {
       log.Println("INFO:", m.Author.Username, "send 'queue remove last'")
       if len(v.queue) > 1 {
         v.QueueRemoveLast()
@@ -278,16 +295,16 @@ func QueueReporter(v *VoiceInstance, m *discordgo.MessageCreate) {
 
   }
   // queue list
-  if strings.Contains(m.Content, "queue list") {
+  if strings.HasSuffix(m.Content, "queue list") {
     log.Println("INFO:", m.Author.Username, "send 'queue list'")
     message := "[**Music**] My songs are:\n\nNow Playing: **`"+ v.nowPlaying.Title +"`  -  `("+
-      v.nowPlaying.Duration +")`  -  `"+ v.nowPlaying.User +"`**\n"
+      v.nowPlaying.Duration +")`  -  "+ v.nowPlaying.User +"**\n"
     
     queue := v.queue[1:]
     if len(queue) != 0 {
       var duration TimeDuration
       for i, q := range queue {
-        message = message + "\n**`["+ strconv.Itoa(i+1) +"]`  -  `"+ q.Title +"`  -  `("+ q.Duration +")`  -  `"+ q.User +"`**"
+        message = message + "\n**`["+ strconv.Itoa(i+1) +"]`  -  `"+ q.Title +"`  -  `("+ q.Duration +")`  -  "+ q.User +"**"
         d := strings.Split(q.Duration, ":")
         
         switch (len(d)) {
@@ -348,17 +365,17 @@ func SkipReporter(v *VoiceInstance, m *discordgo.MessageCreate) {
 }
 
 // YoutubeReporter
-func YoutubeReporter(m *discordgo.MessageCreate) {
+func YoutubeReporter(v *VoiceInstance, m *discordgo.MessageCreate) {
   log.Println("INFO:", m.Author.Username, "send 'youtube'")
   command := strings.SplitAfter(m.Content, strings.Fields(m.Content)[0])
   query := strings.TrimSpace(command[1])
-  song, err := YoutubeFind(query, m)
-  if err != nil || song.ID == "" {
+  song, err := YoutubeFind(query, v, m)
+  if err != nil || song.data.ID == "" {
     log.Println("ERROR: Youtube search: ", err)
     ChMessageSend(m.ChannelID, "[**Music**] I can't found this song!")
     return
   }
-  ChMessageSendHold(m.ChannelID, "[**Music**] **`"+ song.User +"`**, Youtube URL: https://www.youtube.com/watch?v="+ song.ID)
+  ChMessageSendHold(m.ChannelID, "[**Music**] **`"+ song.data.User +"`**, Youtube URL: https://www.youtube.com/watch?v="+ song.data.VidID)
 }
 
 // Not used for now
