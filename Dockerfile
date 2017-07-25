@@ -7,8 +7,6 @@ RUN CGO_ENABLED=0 go get github.com/ljgago/MusicBot
 
 RUN mkdir /bot
 
-COPY bot.toml /bot
-
 WORKDIR /bot
 
 CMD ["MusicBot", "-f", "bot.toml"]

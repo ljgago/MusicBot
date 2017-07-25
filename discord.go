@@ -18,6 +18,7 @@ func DiscordConnect() (err error) {
   dg.AddHandler(MessageCreateHandler)
   dg.AddHandler(GuildCreateHandler)
   dg.AddHandler(GuildDeleteHandler)
+  dg.AddHandler(ConnectHandler)
   // Open Websocket
   err = dg.Open()
   if err != nil {
@@ -145,6 +146,12 @@ func initRoutine() {
   radioSignal = make(chan PkgRadio)
   go GlobalPlay(songSignal)
   go GlobalRadio(radioSignal)
+}
+
+// ConnectHandler
+func ConnectHandler(s *discordgo.Session, connect *discordgo.Connect) {
+  log.Println("INFO: Connected!!")
+  s.UpdateStatus(0, o.DiscordStatus)
 }
 
 // GuildCreateHandler
