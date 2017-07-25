@@ -5,4 +5,6 @@ services:
     build: .
     image: musicbot-img
     restart: always
+    volumes:
+      - ./bot.toml:/bot/bot.toml
 

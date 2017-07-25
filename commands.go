@@ -140,7 +140,7 @@ func RadioReporter(v *VoiceInstance, m *discordgo.MessageCreate) {
   go func() {
     radioSignal <- radio
   }()
-  ChMessageSend(m.ChannelID, "[**Music**] *`"+ m.Author.Username +"`* I'm playing a radio now!")
+  ChMessageSend(m.ChannelID, "[**Music**] **`"+ m.Author.Username +"`** I'm playing a radio now!")
 }
 
 // StopReporter

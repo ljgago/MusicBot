@@ -38,7 +38,7 @@ Edit and rename **_bot.toml.sample_** to **_bot.toml_**
 ```bash
 # Run docker
 docker build -t musicbot-img .
-docker run -d --name musicbot --restart always -it musicbot-img
+docker run -d --name musicbot --restart always -v $PWD/bot.toml:/bot/bot.toml -it musicbot-img
 ```
 
 If you have docker-compose:
