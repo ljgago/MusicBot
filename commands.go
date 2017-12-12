@@ -49,12 +49,12 @@ func JoinReporter(v *VoiceInstance, m *discordgo.MessageCreate, s *discordgo.Ses
   } else {
     guildID := SearchGuild(m.ChannelID)
     // create new voice instance
+    mutex.Lock()
     v = new(VoiceInstance)
-    //mutex.Lock()
     voiceInstances[guildID] = v
-    //mutex.Unlock()
     v.guildID = guildID
     v.session = s
+    mutex.Unlock()
     //v.InitVoice()
   }
   var err error
