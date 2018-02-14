@@ -39,5 +39,4 @@
 bin/*
 ignore/*
 musicbot
-
-
+MusicBot.db
